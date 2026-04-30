@@ -10,50 +10,62 @@ def format_request(operation, key, value=None):
         request = f"{operation} {key}"
     return f"{len(request):03} {request}"
 
-def client_thread(host, port, requests, semaphore):
-    # Function for each client thread to send requests and receive responses
+def client_thread(host, port, client_id, semaphore):
+    # Thread function for a single concurrent test client.
     with semaphore:
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.connect((host, port))
+            print(f"Client {client_id} connected")
 
-            for request in requests:
+            # Test requests (covers success + error scenarios)
+            requests = [
+                f"PUT shared-key test-value-{client_id}",  # Shared key for race condition test
+                f"READ shared-key",
+                f"PUT unique-key-{client_id} value-{client_id}",
+                f"GET unique-key-{client_id}",
+                f"READ unique-key-{client_id}",  # Expected error
+                f"GET non-existent-key"  # Expected error
+            ]
+
+            for idx, request in enumerate(requests):
+                time.sleep(0.01)  # Small delay to simulate real network
                 formatted_request = format_request(*request.split(maxsplit=2))
                 client_socket.send(formatted_request.encode('utf-8'))
                 response = client_socket.recv(1024).decode('utf-8')
-                print(f"Sent: {formatted_request}, Received: {response}")
+                print(f"Client {client_id} [{idx+1}]: Sent={formatted_request}, Received={response}")
 
             client_socket.close()
+            print(f"Client {client_id} disconnected")
         except Exception as e:
-            print(f"Client thread encountered an error: {e}")
+            print(f"Client {client_id} error: {e}")
 
 def test_concurrent_access():
-    # Function to simulate multiple clients accessing the server concurrently
+    # Simulate concurrent clients to test thread safety and race conditions.
     host = 'localhost'
     port = 51234
-    requests = [
-        "PUT key1 value1",
-        "GET key1",
-        "READ key2",
-        "PUT key2 value2",
-        "GET key2"
-    ]
-
-    # Limit the number of clients running at the same time
-    max_clients = 5
-    semaphore = threading.Semaphore(max_clients)
-
+    max_concurrent = 5
+    total_clients = 10
+    semaphore = threading.Semaphore(max_concurrent)
     threads = []
-    # Simulate 10 client threads
-    for _ in range(10):
-        thread = threading.Thread(target=client_thread, args=(host, port, requests, semaphore))
+
+    print(f"Starting concurrent test: {total_clients} clients (max {max_concurrent} concurrent)")
+    for client_id in range(total_clients):
+        thread = threading.Thread(target=client_thread, args=(host, port, client_id, semaphore))
         thread.start()
         threads.append(thread)
+        time.sleep(0.05)  # Stagger thread starts to avoid thundering herd
 
     for thread in threads:
         thread.join()
 
+    # Print test summary
+    print("\n=== Concurrent Test Complete ===")
+    print(f"Total clients: {total_clients}")
+    print(f"Max concurrent: {max_concurrent}")
+    print(f"Requests per client: 6")
+
 if __name__ == '__main__':
-    # Wait to ensure the server is fully started
+    print("Waiting for server to initialize...")
     time.sleep(10)
     test_concurrent_access()

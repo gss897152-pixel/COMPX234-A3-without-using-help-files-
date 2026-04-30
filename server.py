@@ -10,7 +10,7 @@ class TupleSpace:
         # Thread - safe lock
         self.lock = threading.Lock()
 
-    # Add a tuple to the space
+    # Add tuple if key does not exist; return protocol-compliant response.
     def put(self, key, value):
         with self.lock:
             if key in self.tuple_space:
@@ -20,7 +20,7 @@ class TupleSpace:
             self.tuple_space[key] = value
             return f"0{len(key) + len(value) + 14} OK ({key}, {value}) added"
 
-    # Get and remove a tuple
+    # Remove and return tuple by key; return protocol-compliant response.
     def get(self, key):
         with self.lock:
             if key not in self.tuple_space:
@@ -28,7 +28,7 @@ class TupleSpace:
             value = self.tuple_space.pop(key)
             return f"0{len(key) + len(value) + 16} OK ({key}, {value}) removed"
 
-    # Read a tuple without removal
+    # Retrieve tuple without removal; return protocol-compliant response.
     def read(self, key):
         with self.lock:
             if key not in self.tuple_space:
@@ -36,7 +36,7 @@ class TupleSpace:
             value = self.tuple_space[key]
             return f"0{len(key) + len(value) + 14} OK ({key}, {value}) read"
 
-# ServerStatistics class to track server stats
+# Tracks server operational metrics per assignment requirements.
 class ServerStatistics:
     def __init__(self):
         self.total_clients = 0
@@ -64,6 +64,7 @@ class ServerStatistics:
     def increment_errors(self):
         self.errors += 1
 
+# Start TCP server, initialize components, and accept client connections.
 def start_server():
     host = 'localhost'
     port = 51234
@@ -99,7 +100,7 @@ def start_server():
         server_socket.close()
 
 def handle_client(client_conn, client_addr, tuple_space, stats):
-    # Handle client requests in a separate thread
+    # Dedicated thread to process requests from a single connected client.
     try:
         while True:
             data = client_conn.recv(1024).decode('utf-8')
@@ -152,7 +153,7 @@ def handle_client(client_conn, client_addr, tuple_space, stats):
         client_conn.close()
 
 def print_server_summary(tuple_space, stats):
-    # Print a summary of the server's current state
+    # Print 10-second periodic summary of tuple space and server metrics.
     num_tuples = len(tuple_space.tuple_space)
     if num_tuples == 0:
         avg_tuple_size = avg_key_size = avg_value_size = 0

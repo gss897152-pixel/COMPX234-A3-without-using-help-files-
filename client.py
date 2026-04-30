@@ -6,7 +6,7 @@ import time
 import subprocess
 
 def format_request(operation, key, value=None):
-    # Format the request message according to the protocol.
+    # Format request message with 3-digit length prefix per assignment protocol.
     if operation == 'PUT':
         request = f"{operation} {key} {value}"
     else:
@@ -14,7 +14,7 @@ def format_request(operation, key, value=None):
     return f"{len(request):03} {request}"
 
 def send_request_to_server(host, port, filename):
-    # Send each line of the file as a request to the server.
+    # Connect to server, send requests line-by-line, and print synchronous responses.
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((host, port))
 
@@ -44,7 +44,7 @@ def send_request_to_server(host, port, filename):
     client_socket.close()
 
 def main():
-    # Start the server in a separate process
+    # Main client entry: start server subprocess and process all client_*.txt files.
     server_thread = threading.Thread(target=start_server)
     server_thread.daemon = True
     server_thread.start()
