@@ -1,3 +1,4 @@
+import glob
 import socket
 import subprocess
 import threading
@@ -33,7 +34,10 @@ def send_file(host,port,fn):
 def main():
     threading.Thread(target=start_server,daemon=True).start()
     time.sleep(1)
-    send_file('localhost',51234,'client_test1.txt')
+    for fn in glob.glob('client_*.txt'):
+        print(f"Processing {fn}")
+        send_file('localhost',51234,fn)
+    time.sleep(5)
 
 if __name__ == '__main__':
     main()
