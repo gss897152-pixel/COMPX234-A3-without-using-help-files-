@@ -7,19 +7,28 @@ def format_request(op,k,v=None):
     else:msg=f"{op} {k}"
     return f"{len(msg):03} {msg}"
 
-def client(host,port,reqs):
-    s=socket.socket()
-    s.connect((host,port))
-    for r in reqs:
-        s.send(format_request(*r.split()).encode())
-        print(s.recv(1024).decode())
-    s.close()
+def client(host,port,reqs,sem):
+    with sem:
+        s=socket.socket()
+        s.connect((host,port))
+        for r in reqs:
+            fr=format_request(*r.split(maxsplit=2))
+            s.send(fr.encode())
+            res=s.recv(1024).decode()
+            print(f"{fr} → {res}")
+        s.close()
 
 def test():
-    reqs=["PUT k1 v1","GET k1","READ k2"]
-    for _ in range(5):
-        threading.Thread(target=client,args=('localhost',51234,reqs)).start()
+    host,port='localhost',51234
+    reqs=["PUT key1 val1","GET key1","READ key2","PUT key2 val2","GET key2"]
+    sem=threading.Semaphore(5)
+    ts=[]
+    for _ in range(10):
+        t=threading.Thread(target=client,args=(host,port,reqs,sem))
+        t.start()
+        ts.append(t)
+    for t in ts:t.join()
 
 if __name__ == '__main__':
-    time.sleep(5)
+    time.sleep(10)
     test()
