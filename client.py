@@ -1,52 +1,66 @@
 import glob
+import os
 import socket
-import subprocess
 import threading
 import time
+import subprocess
 
-# Formatting request: Generate a protocol format with a length of 3 bits and operation instructions
-def format_request(op, k, v=None):
-    if op=="PUT": msg=f"{op} {k} {v}"
-    else: msg=f"{op} {k}"
-    return f"{len(msg):03} {msg}"
+def format_request(operation, key, value=None):
+    # Format the request message according to the protocol.
+    if operation == 'PUT':
+        request = f"{operation} {key} {value}"
+    else:
+        request = f"{operation} {key}"
+    return f"{len(request):03} {request}"
 
-# The child process starts the server without blocking the client's operation
-def start_server():
-    subprocess.Popen(['python','server.py'])
+def send_request_to_server(host, port, filename):
+    # Send each line of the file as a request to the server.
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((host, port))
 
-# Read the file and send a request to the server
-def send_file(host,port,fn):
-    s=socket.socket()
-    s.connect((host,port))
-    with open(fn) as f:
+    with open(filename, 'r') as f:
         for line in f:
-            line=line.strip()
-
-            if not line:continue
-            parts=line.split(maxsplit=2)
-
-            if len(parts)<2:
-                print(f"Invalid: {line}")
+            line = line.strip()
+            if not line:
                 continue
-            op,k=parts[0],parts[1]
-            v=parts[2] if len(parts)>2 else None
 
-            req=format_request(op,k,v)
-            s.send(req.encode())
-            res=s.recv(1024).decode()
-            print(f"Sent: {line} → {res}")
-    s.close()
+            parts = line.split(maxsplit=2)
+            if len(parts) < 2:
+                print(f"Invalid request format: {line}")
+                continue
 
-# Client main function
+            operation = parts[0]
+            key = parts[1]
+            value = parts[2] if len(parts) > 2 else None
+
+            # Format the request message
+            request = format_request(operation, key, value)
+            client_socket.send(request.encode('utf-8'))
+
+            # Wait for the response
+            response = client_socket.recv(1024).decode('utf-8')
+            print(f"Sent: {line}, Received: {response}")
+
+    client_socket.close()
+
 def main():
+    # Start the server in a separate process
+    server_thread = threading.Thread(target=start_server)
+    server_thread.daemon = True
+    server_thread.start()
 
-    threading.Thread(target=start_server,daemon=True).start()
     time.sleep(1)
 
-    for fn in glob.glob('client_*.txt'):
-        print(f"Processing {fn}")
-        send_file('localhost',51234,fn)
+    client_files = glob.glob('client_*.txt')
+    for file in client_files:
+        print(f"Processing {file}")
+        send_request_to_server('localhost', 51234, file)
+
     time.sleep(5)
+
+def start_server():
+    # Start the server in a separate process.
+    subprocess.Popen(['python', 'server.py'])
 
 if __name__ == '__main__':
     main()
