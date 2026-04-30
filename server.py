@@ -37,21 +37,34 @@ def handle_client(conn, addr, ts, stats):
         while True:
             data = conn.recv(1024).decode()
             if not data: break
-            conn.send(b"024 OK test")
-    except: pass
+            length = int(data[:3])
+            req = data[4:length+4]
+            parts = req.split(maxsplit=2)
+            if len(parts)<2:
+                stats.increment_errors()
+                conn.send(b"024 ERR invalid")
+                continue
+            op,k = parts[0],parts[1]
+            v = parts[2] if len(parts)>2 else None
+            if op=="PUT": res=ts.put(k,v)
+            elif op=="GET":res=ts.get(k)
+            elif op=="READ":res=ts.read(k)
+            else:res="024 ERR invalid op"
+            conn.send(res.encode())
+    except: stats.increment_errors()
     finally: conn.close()
 
 def start_server():
-    host, port = 'localhost',51234
-    s = socket.socket()
+    host,port='localhost',51234
+    s=socket.socket()
     s.bind((host,port))
     s.listen(5)
-    ts = TupleSpace()
-    stats = ServerStatistics()
+    ts=TupleSpace()
+    stats=ServerStatistics()
     while True:
-        conn,addr = s.accept()
+        conn,addr=s.accept()
         stats.increment_clients()
-        threading.Thread(target=handle_client, args=(conn,addr,ts,stats)).start()
+        threading.Thread(target=handle_client,args=(conn,addr,ts,stats)).start()
 
 if __name__ == '__main__':
     start_server()
