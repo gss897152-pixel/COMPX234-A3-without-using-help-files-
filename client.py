@@ -11,13 +11,19 @@ def send_file(host,port,fn):
     with open(fn) as f:
         for line in f:
             line=line.strip()
-            if not line:continue
+            if not line:
+                print("Skip empty line")
+                continue
             parts=line.split(maxsplit=2)
+            if len(parts)<2:
+                print(f"Invalid: {line}")
+                continue
             op,k=parts[0],parts[1]
             v=parts[2] if len(parts)>2 else None
             req=format_request(op,k,v)
             s.send(req.encode())
-            print(s.recv(1024).decode())
+            res=s.recv(1024).decode()
+            print(f"Sent: {line} → {res}")
     s.close()
 
 def main():
