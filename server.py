@@ -32,24 +32,38 @@ class ServerStatistics:
     def increment_puts(self): self.total_puts+=1
     def increment_errors(self): self.errors+=1
 
+def print_summary(ts, stats):
+    n = len(ts.tuple_space)
+    print(f"Tuples: {n}, Clients: {stats.total_clients}, Ops: {stats.total_operations}")
+
 def handle_client(conn, addr, ts, stats):
     try:
         while True:
             data = conn.recv(1024).decode()
             if not data: break
-            length = int(data[:3])
-            req = data[4:length+4]
-            parts = req.split(maxsplit=2)
+            length=int(data[:3])
+            req=data[4:length+4]
+            parts=req.split(maxsplit=2)
             if len(parts)<2:
                 stats.increment_errors()
                 conn.send(b"024 ERR invalid")
                 continue
-            op,k = parts[0],parts[1]
-            v = parts[2] if len(parts)>2 else None
-            if op=="PUT": res=ts.put(k,v)
-            elif op=="GET":res=ts.get(k)
-            elif op=="READ":res=ts.read(k)
-            else:res="024 ERR invalid op"
+            op,k=parts[0],parts[1]
+            v=parts[2] if len(parts)>2 else None
+            stats.increment_operations()
+            if op=="PUT":
+                stats.increment_puts()
+                res=ts.put(k,v)
+            elif op=="GET":
+                stats.increment_gets()
+                res=ts.get(k)
+            elif op=="READ":
+                stats.increment_reads()
+                res=ts.read(k)
+            else:
+                stats.increment_errors()
+                res="024 ERR invalid op"
+            if "ERR" in res: stats.increment_errors()
             conn.send(res.encode())
     except: stats.increment_errors()
     finally: conn.close()
@@ -61,6 +75,11 @@ def start_server():
     s.listen(5)
     ts=TupleSpace()
     stats=ServerStatistics()
+    def loop_print():
+        while True:
+            print_summary(ts,stats)
+            time.sleep(10)
+    threading.Thread(target=loop_print,daemon=True).start()
     while True:
         conn,addr=s.accept()
         stats.increment_clients()
