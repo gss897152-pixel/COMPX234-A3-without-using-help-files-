@@ -1,10 +1,17 @@
 import socket
 
+def format_request(op, k, v=None):
+    if op=="PUT": msg=f"{op} {k} {v}"
+    else: msg=f"{op} {k}"
+    return f"{len(msg):03} {msg}"
+
 def main():
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(('localhost', 51234))
-    print("Client connected to server")
-    client_socket.close()
+    s=socket.socket()
+    s.connect(('localhost',51234))
+    req=format_request("PUT","test","123")
+    s.send(req.encode())
+    print(s.recv(1024).decode())
+    s.close()
 
 if __name__ == '__main__':
     main()
