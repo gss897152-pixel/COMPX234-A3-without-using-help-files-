@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 class TupleSpace:
     def __init__(self):
@@ -26,6 +27,22 @@ class TupleSpace:
                 return "024 ERR key does not exist"
             val = self.tuple_space[key]
             return f"0{len(key)+len(val)+14} OK ({key},{val}) read"
+
+class ServerStatistics:
+    def __init__(self):
+        self.total_clients = 0
+        self.total_operations = 0
+        self.total_reads = 0
+        self.total_gets = 0
+        self.total_puts = 0
+        self.errors = 0
+
+    def increment_clients(self): self.total_clients +=1
+    def increment_operations(self): self.total_operations +=1
+    def increment_reads(self): self.total_reads +=1
+    def increment_gets(self): self.total_gets +=1
+    def increment_puts(self): self.total_puts +=1
+    def increment_errors(self): self.errors +=1
 
 def start_server():
     host = 'localhost'
